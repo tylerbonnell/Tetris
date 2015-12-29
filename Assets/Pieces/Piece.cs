@@ -41,11 +41,15 @@ public class Piece : MonoBehaviour {
 	public int height = 3;
 	public Block[,] grid;
 	public GridCoord topLeft;
-	public Block[] blocks;
+	private Block[] blocks;
 	public Material[] materials;
+	public GameObject blockPrefab;
 
 	// Sets the type of the shape (of the 7 types up above)
 	public void setType (int shapeType) {
+		blocks = new Block[4];
+		for (int i = 0; i < blocks.Length; i++)
+			blocks [i] = Instantiate (blockPrefab).GetComponent<Block> ();
 		shape = shapes [shapeType];
 		width = shape [0, 0].Length;
 		height = shape.GetLength(0);
@@ -57,7 +61,6 @@ public class Piece : MonoBehaviour {
 	// Passes in the grid it should be added to and the top left coordinate
 	// where the piece should be placed
 	public bool addToGrid (Block[,] grid, GridCoord topLeft) {
-		bool result = true;
 		this.grid = grid;
 		this.topLeft = topLeft;
 		GridCoord[] tests = {new GridCoord (topLeft.row - 3, topLeft.col), 
@@ -76,21 +79,6 @@ public class Piece : MonoBehaviour {
 			return false;
 		}
 		return true;
-		/*
-		int i = 0;
-		for (int r = 0; r < shape.GetLength(0); r++) {
-			for (int c = 0; c < shape[r, currentRotation].Length; c++) {
-				if (shape[r, currentRotation][c] == '1') {
-					//Debug.Log ("a block SHOULD be added at grid[" + (r + topLeft.row) + ", " + (c + topLeft.col) + "]");
-					if (grid[topLeft.row + r, topLeft.col + c] != null)
-						result = false;
-					grid[topLeft.row + r, topLeft.col + c] = blocks[i];
-					i++;
-				}
-			}
-		}
-		*/
-		return result;
 	}
 
 	// Attempts to rotate the piece (uses wall kicks if it can't rotate in place)
@@ -138,6 +126,9 @@ public class Piece : MonoBehaviour {
 		return false;
 	}
 
+	// Removes the shape from the grid, checks if it can be readded one space below.
+	// If it can't, then it's at the bottom (and true will be returned). Re-adds the
+	// shape to the grid, then returns the result
 	public bool isAtBottom () {
 		removeFromGrid ();
 		GridCoord belowCoords = new GridCoord (topLeft.row + 1, topLeft.col);
@@ -149,14 +140,19 @@ public class Piece : MonoBehaviour {
 		return false;
 	}
 
+	// Shifts the shape in the given direction if possible. Returns whether or not
+	// the given shift was successful.
 	public bool shiftHorizontal (int dir) {
 		return shift (dir, 0);
 	}
 
+	// Shifts the shape down if possible. Returns whether or not the shift succeeded.
 	public bool shiftDown () {
 		return shift (0, 1);
 	}
 
+	// Shifts the shape in the given horizontal and vertical directions. Returns whether
+	// or not the shift succeeded.
 	private bool shift (int horizontal, int vertical) {
 		removeFromGrid ();
 		GridCoord newCoords = new GridCoord (topLeft.row + vertical, topLeft.col + horizontal);
@@ -200,11 +196,6 @@ public class Piece : MonoBehaviour {
 		}
 	}
 
-	public void setPlayerControlled (bool setting) {
-		foreach (Block b in blocks)
-			b.playerControlled = setting;
-	}
-
 	// Increments rotation in the direction given (default 1). should only take 1 or -1.
 	private void cycleRotation (int dir = 1) {
 		if (currentRotation + dir == 4)
@@ -215,7 +206,7 @@ public class Piece : MonoBehaviour {
 			currentRotation += dir;
 	}
 
-	// removes the block from its grid
+	// removes the piece from its grid
 	private void removeFromGrid () {
 		for (int r = 0; r < shape.GetLength(0); r++) {
 			for (int c = 0; c < shape[r, currentRotation].Length; c++) {
