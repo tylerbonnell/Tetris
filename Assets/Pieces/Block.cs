@@ -8,7 +8,7 @@ public class Block : MonoBehaviour {
 	//public GridCoord coord;
 	//public bool needsNewCoords = true;
 
-	public void smash () {
+	public void smash (bool showExplosion = true) {
 		Destroy (gameObject);
 	}
 }

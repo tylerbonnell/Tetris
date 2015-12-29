@@ -60,6 +60,23 @@ public class Piece : MonoBehaviour {
 		bool result = true;
 		this.grid = grid;
 		this.topLeft = topLeft;
+		GridCoord[] tests = {new GridCoord (topLeft.row - 3, topLeft.col), 
+			new GridCoord (topLeft.row - 2, topLeft.col), 
+			new GridCoord (topLeft.row - 1, topLeft.col), topLeft};
+		GridCoord resultCoord = null;
+		foreach (GridCoord coord in tests) {
+			if (canAddAt (coord)) {
+				resultCoord = coord;
+			}
+		}
+		if (resultCoord != null) {
+			addAt (resultCoord);
+		}
+		if (resultCoord != topLeft) {
+			return false;
+		}
+		return true;
+		/*
 		int i = 0;
 		for (int r = 0; r < shape.GetLength(0); r++) {
 			for (int c = 0; c < shape[r, currentRotation].Length; c++) {
@@ -72,12 +89,15 @@ public class Piece : MonoBehaviour {
 				}
 			}
 		}
+		*/
 		return result;
 	}
 
 	// Attempts to rotate the piece (uses wall kicks if it can't rotate in place)
+	// If it's at the bottom, it can perform floor kicks
 	// If the piece cannot rotate, returns false;
 	public bool rotate () {
+		bool atBottom = isAtBottom ();
 		removeFromGrid ();
 		cycleRotation ();
 		GridCoord left = new GridCoord (topLeft.row, topLeft.col - 1);
@@ -85,6 +105,13 @@ public class Piece : MonoBehaviour {
 		if (canAddAt (topLeft)) {
 			addAt (topLeft);
 			return true;
+		} else if (atBottom) { // it has blocks below it and can't go down, so try a floor kick
+			GridCoord up = new GridCoord (topLeft.row - 1, topLeft.col);
+			if (canAddAt (up)) {
+				addAt (up);
+				topLeft = up;
+				return true;
+			}
 		} else if (canAddAt (left)) {
 			addAt (left);
 			topLeft = left;
@@ -107,6 +134,17 @@ public class Piece : MonoBehaviour {
 			}
 		}
 		cycleRotation (-1);
+		addAt (topLeft);
+		return false;
+	}
+
+	public bool isAtBottom () {
+		removeFromGrid ();
+		GridCoord belowCoords = new GridCoord (topLeft.row + 1, topLeft.col);
+		if (!canAddAt (belowCoords)) { // it can't go down further
+			addAt (topLeft);
+			return true;
+		}
 		addAt (topLeft);
 		return false;
 	}
@@ -137,7 +175,8 @@ public class Piece : MonoBehaviour {
 		for (int r = 0; r < shape.GetLength(0); r++) {
 			for (int c = 0; c < shape[r, currentRotation].Length; c++) {
 				// It can't add if there is a conflicting block or it is trying to place a block outside the grid.
-				if (shape[r, currentRotation][c] == '1' && (topLeft.row + r >= grid.GetLength(0) ||
+				if (shape[r, currentRotation][c] == '1' && (topLeft.row + r < 0 ||
+				                                            topLeft.row + r >= grid.GetLength(0) ||
 				                                            topLeft.col + c < 0 || 
 				                                            topLeft.col + c >= grid.GetLength(1) || 
 				                                            grid[topLeft.row + r, topLeft.col + c] != null)) {
@@ -181,7 +220,11 @@ public class Piece : MonoBehaviour {
 		for (int r = 0; r < shape.GetLength(0); r++) {
 			for (int c = 0; c < shape[r, currentRotation].Length; c++) {
 				if (shape[r, currentRotation][c] == '1') {
-					grid[topLeft.row + r, topLeft.col + c] = null;
+					int rCoord = topLeft.row + r;
+					int cCoord = topLeft.col + c;
+					if (rCoord >= 0 && rCoord < grid.GetLength(0) &&
+					    cCoord >= 0 && cCoord < grid.GetLength(1))
+						grid[rCoord, cCoord] = null;
 				}
 			}
 		}

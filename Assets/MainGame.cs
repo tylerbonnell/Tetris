@@ -45,7 +45,10 @@ public class MainGame : MonoBehaviour {
 
 		if (currentPlayerPiece != null) {
 			if (Input.GetKeyDown (KeyCode.UpArrow)) {
+				bool atBottom = currentPlayerPiece.isAtBottom ();
 				if (currentPlayerPiece.rotate ()) {
+					if (atBottom)
+						lastShiftTime = timeElapsed; // performed a floor kick, reset timer for freezing block
 					drawFlag = true;
 				}
 			}
@@ -89,6 +92,7 @@ public class MainGame : MonoBehaviour {
 
 	// Tests for complete rows and deletes them
 	private void rowTest () {
+		int rowsDestroyed = 0;
 		for (int r = height - 1; r >= 0; r--) {
 			bool completeRow = true;
 			for (int c = 0; c < width; c++) {
@@ -98,6 +102,7 @@ public class MainGame : MonoBehaviour {
 				}
 			}
 			if (completeRow) {
+				rowsDestroyed++;
 				for (int c = 0; c < width; c++)
 					if (grid[r, c] != null)
 						grid[r, c].smash ();
@@ -136,7 +141,7 @@ public class MainGame : MonoBehaviour {
 		GameObject pieceObject = Instantiate (piece);
 		currentPlayerPiece = pieceObject.GetComponent<Piece> ();
 		currentPlayerPiece.setType (Random.Range (0, Piece.shapes.GetLength(0)));
-		GridCoord gridTopLeft = new GridCoord (0, width/2 - (currentPlayerPiece.width + 1)/2);
+		GridCoord gridTopLeft = new GridCoord (0, width/2 - (currentPlayerPiece.width + 1)/2 + (currentPlayerPiece.width == 3 ? Random.Range(0, 2) : 0));
 		bool result = currentPlayerPiece.addToGrid (grid, gridTopLeft);
 		drawPieces ();
 		return result;
