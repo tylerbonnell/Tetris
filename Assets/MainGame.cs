@@ -9,18 +9,23 @@ public class MainGame : MonoBehaviour {
 	public GameObject piece;
 	private Piece currentPlayerPiece;
 
-	private float baseTempo = .5f;
+	private float baseTempo = .75f;
 	private float tempo;
 	private float timeElapsed = 0f;
 	private float lastShiftTime = 0f; // last time the pieces shifted down
-	private float timeToHalveSpeed = 60f; // every this many seconds, the game doubles in speed
 
 	private bool gameOver = false;
 	private bool spawnPieceNextTurn = true;
-	
+
+	void Start () {
+		write3dText ();
+		initialSpawnNextPieces ();
+	}
+
 	// Update is called once per frame
 	void Update () {
-		tempo = Mathf.Max (.01f, baseTempo / Mathf.Pow(2, (timeElapsed / timeToHalveSpeed)));
+		tempo = Mathf.Max (.01f, baseTempo - timeElapsed / 1000);
+		//Debug.Log (tempo);
 
 		timeElapsed += Time.deltaTime;
 
@@ -37,10 +42,12 @@ public class MainGame : MonoBehaviour {
 			if (timeElapsed - lastShiftTime > tempo) {
 				shiftPlayerDown ();
 				lastShiftTime = timeElapsed;
-			} else if (gameOver) {
-				endGame ();
 			}
 			playerInput ();
+		}
+		
+		if (gameOver) {
+			endGame ();
 		}
 	}
 
@@ -119,6 +126,10 @@ public class MainGame : MonoBehaviour {
 	private bool shiftPlayerDown (bool draw = true) {
 		bool result = currentPlayerPiece.shiftDown ();
 		if (!result) { // piece couldn't move down
+			// make sure this piece didn't just go above the top row
+			for (int c = 0; c < width; c++)
+				if (grid[0, c] != null)
+					gameOver = true;
 			spawnPieceNextTurn = true;
 			rowTest ();
 		} else if (draw) {
@@ -191,14 +202,32 @@ public class MainGame : MonoBehaviour {
 		}
 	}
 
+	public PieceStorage[] nextPieces;
+
+	private void initialSpawnNextPieces () {
+		for (int i = 0; i < nextPieces.Length; i++) {
+			nextPieces[i].set (Instantiate(piece).GetComponent<Piece> ());
+		}
+	}
+
 	// spawns the new currentPlayerPiece
-	private bool spawnPiece () {
-		GameObject pieceObject = Instantiate (piece);
-		currentPlayerPiece = pieceObject.GetComponent<Piece> ();
-		currentPlayerPiece.setType (Random.Range (0, Piece.shapes.GetLength(0)));
+	private bool spawnPiece () {		
+		// shift all the next pieces up and spawn the next piece
+		currentPlayerPiece = nextPieces[0].piece;
+		for (int i = 0; i < nextPieces.Length - 1; i++) {
+			nextPieces[i].set (nextPieces[i + 1].piece);
+		}
+		nextPieces[nextPieces.Length - 1].set (Instantiate (piece).GetComponent<Piece> ());
+
 		GridCoord gridTopLeft = new GridCoord (0, width/2 - (currentPlayerPiece.width + 1)/2 + (currentPlayerPiece.width == 3 ? Random.Range(0, 2) : 0));
 		bool result = currentPlayerPiece.addToGrid (grid, gridTopLeft);
 		drawPieces ();
 		return result;
+	}
+	
+	// Writes out all the GUI words in 3d voxels
+	private void write3dText () {
+		Alphabet.singleton.write ("next", new Vector3 (13.75f, .25f, 0), Quaternion.identity.eulerAngles, Vector3.one * .5f);
+		//Alphabet.singleton.write ()
 	}
 }

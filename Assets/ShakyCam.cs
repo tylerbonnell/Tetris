@@ -20,7 +20,7 @@ public class ShakyCam : MonoBehaviour {
 	void Update () {
 		if (strength > 0) {
 			transform.position = initialPos + strength * Random.insideUnitSphere;
-			transform.eulerAngles = initialRot + strength * Random.insideUnitSphere * 2;
+			transform.eulerAngles = initialRot + strength * Random.insideUnitSphere * 2.5f;
 
 			strength -= Time.deltaTime/1.5f;
 			if (strength <= 0) {

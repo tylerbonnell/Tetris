@@ -62,3 +62,21 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+.vscode/launch.json
+
+.vscode/settings.json
+
+Assets/Plugins/Editor/VSCode.cs
+
+Assets/Plugins/Editor/VSCode.cs.meta
+
+Assets/VSCode/
+
+Assets/VSCode.meta
+
+Assets/Plugins/Editor/dotBunny.meta
+
+Assets/Plugins/Editor/dotBunny/VSCode.cs
+
+Assets/Plugins/Editor/dotBunny/VSCode.cs.meta

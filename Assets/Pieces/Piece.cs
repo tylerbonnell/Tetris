@@ -36,6 +36,7 @@ public class Piece : MonoBehaviour {
 
 	public static string[][,] shapes = new string[][,] {tShape, lShape1, lShape2, zShape1, zShape2, barShape, sqShape};
 	public string[,] shape;
+	public int shapeType;
 	private int currentRotation = 2;
 	public int width = 3;
 	public int height = 3;
@@ -44,23 +45,22 @@ public class Piece : MonoBehaviour {
 	private Block[] blocks;
 	public Material[] materials;
 	public GameObject blockPrefab;
+	public Material blockColor;
 
-	// Sets the type of the shape (of the 7 types up above)
+	void Awake () {
+		setType (Random.Range (0, shapes.GetLength(0)));
+	}
+
+	// Sets the type of the shape (of the 7 types up above) and the material
 	public void setType (int shapeType) {
-		blocks = new Block[4];
-		for (int i = 0; i < blocks.Length; i++)
-			blocks [i] = Instantiate (blockPrefab).GetComponent<Block> ();
-		shape = shapes [shapeType];
-		width = shape [0, 0].Length;
-		height = shape.GetLength(0);
-		Material blockColor = materials [Random.Range (0, materials.Length)];
-		foreach (Block b in blocks)
-			b.gameObject.GetComponent<MeshRenderer> ().material = blockColor;
+		this.shapeType = shapeType;
+		blockColor = materials [Random.Range (0, materials.Length)];
 	}
 
 	// Passes in the grid it should be added to and the top left coordinate
 	// where the piece should be placed
 	public bool addToGrid (Block[,] grid, GridCoord topLeft) {
+		initializeBlocks ();
 		this.grid = grid;
 		this.topLeft = topLeft;
 		GridCoord[] tests = {new GridCoord (topLeft.row - 3, topLeft.col), 
@@ -79,6 +79,18 @@ public class Piece : MonoBehaviour {
 			return false;
 		}
 		return true;
+	}
+	
+	// Spawns in the 4 blocks
+	private void initializeBlocks () {
+		blocks = new Block[4];
+		for (int i = 0; i < blocks.Length; i++)
+			blocks [i] = Instantiate (blockPrefab).GetComponent<Block> ();
+		shape = shapes [shapeType];
+		width = shape [0, 0].Length;
+		height = shape.GetLength(0);
+		foreach (Block b in blocks)
+			b.gameObject.GetComponent<MeshRenderer> ().material = blockColor;
 	}
 
 	// Attempts to rotate the piece (uses wall kicks if it can't rotate in place)
