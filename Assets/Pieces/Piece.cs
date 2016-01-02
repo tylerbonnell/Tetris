@@ -37,7 +37,7 @@ public class Piece : MonoBehaviour {
 	public static string[][,] shapes = new string[][,] {tShape, lShape1, lShape2, zShape1, zShape2, barShape, sqShape};
 	public string[,] shape;
 	public int shapeType;
-	private int currentRotation = 2;
+	public int currentRotation = 2; // should be 0-3
 	public int width = 3;
 	public int height = 3;
 	public Block[,] grid;
@@ -179,7 +179,7 @@ public class Piece : MonoBehaviour {
 	
 	// returns whether or not the rotated block can be added back in at the
 	// given top left coord.
-	private bool canAddAt (GridCoord topLeft) {
+	private bool canAddAt (GridCoord topLeft, bool ignoreSelf = false) {
 		for (int r = 0; r < shape.GetLength(0); r++) {
 			for (int c = 0; c < shape[r, currentRotation].Length; c++) {
 				// It can't add if there is a conflicting block or it is trying to place a block outside the grid.
@@ -230,6 +230,27 @@ public class Piece : MonoBehaviour {
 						grid[rCoord, cCoord] = null;
 				}
 			}
+		}
+	}
+	
+	// This should be called AFTER drawing
+	public void drawGhostBlock (Transform[] ghostBlocks) {
+		int rowsDown = 0;
+		removeFromGrid ();
+		while (canAddAt (new GridCoord (topLeft.row + rowsDown + 1, topLeft.col))) {
+			rowsDown++;
+		}
+		addAt (topLeft);
+		for (int i = 0; i < ghostBlocks.Length; i++) {
+			ghostBlocks[i].position = blocks[i].transform.position - new Vector3 (0, rowsDown, 0);
+		}
+	}
+	
+	// deletes a piece from the grid it is on and deletes its blocks
+	public void deleteFromGrid () {
+		removeFromGrid ();
+		for (int i = 0; i < blocks.Length; i++) {
+			Destroy (blocks[i].gameObject);
 		}
 	}
 }

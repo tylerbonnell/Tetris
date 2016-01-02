@@ -24,20 +24,28 @@ public class PieceStorage : MonoBehaviour {
 		}
 	}
 
+	// Saves and displays the given piece. If piece == null, displays nothing.
 	public void set (Piece piece) {
-		if (!containsPiece)
-			foreach (Block b in blocks)
-				b.gameObject.SetActive (true);
-		containsPiece = true;
 		this.piece = piece;
-		int i = 0;
-		for (int r = 0; r < shapes.GetLength(1); r++) {
-			for (int c = 0; c < shapes[piece.shapeType, r].Length; c++) {
-				if (shapes[piece.shapeType, r][c] == '1') {
-					blocks[i].transform.position = Vector3.down * r + 
-						transform.position + Vector3.right * c;
-					meshes[i].material = piece.blockColor;
-					i++;
+		if (piece == null) {
+			containsPiece = false;
+			foreach (Block b in blocks)
+					b.gameObject.SetActive (false);
+		} else {
+			if (!containsPiece)
+				foreach (Block b in blocks)
+					b.gameObject.SetActive (true);
+			containsPiece = true;
+			piece.currentRotation = 2;
+			int i = 0;
+			for (int r = 0; r < shapes.GetLength(1); r++) {
+				for (int c = 0; c < shapes[piece.shapeType, r].Length; c++) {
+					if (shapes[piece.shapeType, r][c] == '1') {
+						blocks[i].transform.position = Vector3.down * r + 
+							transform.position + Vector3.right * c;
+						meshes[i].material = piece.blockColor;
+						i++;
+					}
 				}
 			}
 		}

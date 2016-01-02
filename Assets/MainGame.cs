@@ -8,6 +8,8 @@ public class MainGame : MonoBehaviour {
 	public Block[,] grid = new Block[height,width]; // access a location with grid[row, column]
 	public GameObject piece;
 	private Piece currentPlayerPiece;
+	private Transform[] ghostBlockPieces;
+	public GameObject ghostBlockPrefab;
 
 	private float baseTempo = .75f;
 	private float tempo;
@@ -15,48 +17,64 @@ public class MainGame : MonoBehaviour {
 	private float lastShiftTime = 0f; // last time the pieces shifted down
 
 	private bool gameOver = false;
+	private bool gameEnded = false;
 	private bool spawnPieceNextTurn = true;
+	private bool atBottom = false;
+	
+	private bool canHold = true;
+	private bool spawnNextFromHeldPiece = false;
+	public PieceStorage heldPiece;
 
 	void Start () {
 		write3dText ();
 		initialSpawnNextPieces ();
+		//spawnGhostPieces ();
 	}
 
 	// Update is called once per frame
 	void Update () {
-		tempo = Mathf.Max (.01f, baseTempo - timeElapsed / 1000);
+		if (Input.GetKeyDown (KeyCode.Escape)) {
+			Application.LoadLevel ("MainMenu");
+		}
+		
+		tempo = Mathf.Max (.01f, baseTempo - timeElapsed / 800);
 		//Debug.Log (tempo);
 
 		timeElapsed += Time.deltaTime;
 
-		if (!gameOver) {
+		if (gameOver && !gameEnded) {
+			endGame ();
+		} else if (!gameOver) {
 			if (spawnPieceNextTurn) {
 				spawnPieceNextTurn = false;
-				bool successfulSpawn = spawnPiece ();
+				bool successfulSpawn = spawnPiece (spawnNextFromHeldPiece);
+				spawnNextFromHeldPiece = false;
 				lastShiftTime = timeElapsed;
 				if (!successfulSpawn) {
 					gameOver = true;
 				}
 			}
-
-			if (timeElapsed - lastShiftTime > tempo) {
-				shiftPlayerDown ();
-				lastShiftTime = timeElapsed;
+			if (!gameOver) {
+				playerInput ();
+				if (timeElapsed - lastShiftTime > tempo) {
+					shiftPlayerDown ();
+					lastShiftTime = timeElapsed;
+				}
 			}
-			playerInput ();
 		}
 		
-		if (gameOver) {
-			endGame ();
-		}
+		if (drawFlag)
+			drawPieces ();
+
+		drawFlag = false;
 	}
 
 	private bool drawFlag;
 	private void playerInput () {
 		if (currentPlayerPiece != null) {
+			atBottom = currentPlayerPiece.isAtBottom ();
 			if (Input.GetKeyDown (KeyCode.UpArrow)) {
-				bool atBottom = currentPlayerPiece.isAtBottom ();
-				if (currentPlayerPiece.rotate ()) {
+				if (currentPlayerPiece.rotate ()) { // successfully rotated
 					if (atBottom)
 						lastShiftTime = timeElapsed; // performed a floor kick, reset timer for freezing block
 					drawFlag = true;
@@ -70,34 +88,41 @@ public class MainGame : MonoBehaviour {
 
 			// Moving left and right
 			if (Input.GetKeyDown (KeyCode.RightArrow)) {
-				currentPlayerPiece.shiftHorizontal (1);
+				bool success = currentPlayerPiece.shiftHorizontal (1);
+				checkBottomMovement (success);
 				InvokeRepeating ("moveRight", .25f, .075f);
 				drawFlag = true;
 			} else if (Input.GetKeyDown (KeyCode.LeftArrow)) {
-				currentPlayerPiece.shiftHorizontal (-1);
+				bool success = currentPlayerPiece.shiftHorizontal (-1);
+				checkBottomMovement (success);
 				InvokeRepeating ("moveLeft", .25f, .075f);
 				drawFlag = true;
 			}
 
 			// Hard drop
 			if (Input.GetKeyDown (KeyCode.Space)) {
-				while (shiftPlayerDown ());
+				while (shiftPlayerDown (false));
 				drawFlag = true;
 				ShakyCam.singleton.shake (.3f);
 			}
+			
+			// Store a piece
+			if (Input.GetKeyDown (KeyCode.LeftShift) && canHold) {
+				canHold = false;
+				spawnNextFromHeldPiece = true;
+				currentPlayerPiece.deleteFromGrid ();
+				spawnPieceNextTurn = true;
+				drawFlag = true;
+			}
 		}
-		
-		if (drawFlag)
-			drawPieces ();
-
-		drawFlag = false;
 	}
 
 	private void moveRight () {
 		if (Input.GetKey (KeyCode.LeftArrow) || !Input.GetKey (KeyCode.RightArrow)) {
 			CancelInvoke ("moveRight");
 		} else {
-			currentPlayerPiece.shiftHorizontal (1);
+			bool success = currentPlayerPiece.shiftHorizontal (1);
+			checkBottomMovement (success);
 			drawFlag = true;
 		}
 	}
@@ -106,8 +131,16 @@ public class MainGame : MonoBehaviour {
 		if (Input.GetKey (KeyCode.RightArrow) || !Input.GetKey (KeyCode.LeftArrow)) {
 			CancelInvoke ("moveLeft");
 		} else {
-			currentPlayerPiece.shiftHorizontal (-1);
+			bool success = currentPlayerPiece.shiftHorizontal (-1);
+			checkBottomMovement (success);
 			drawFlag = true;
+		}
+	}
+	
+	// If the player piece cannot go down any more, but they move L/R, they gain some time
+	private void checkBottomMovement (bool successfullyMoved) {
+		if (atBottom && successfullyMoved) {
+			lastShiftTime = timeElapsed;
 		}
 	}
 
@@ -131,10 +164,10 @@ public class MainGame : MonoBehaviour {
 				if (grid[0, c] != null)
 					gameOver = true;
 			spawnPieceNextTurn = true;
+			canHold = true;
 			rowTest ();
-		} else if (draw) {
-			drawPieces ();
-		}
+		} else if (draw)
+			drawFlag = true;
 		return result;
 	}
 
@@ -166,40 +199,44 @@ public class MainGame : MonoBehaviour {
 			}
 		}
 		if (rowsDestroyed > 0)
-			ShakyCam.singleton.shake (Mathf.Max (1f, rowsDestroyed * 1f/2f));
+			ShakyCam.singleton.shake (Mathf.Max (1f, rowsDestroyed * 1f/3f));
 	}
 
-	private int rowToDestroyNext = 1;
+	private int rowToDestroyNext = 0;
+	// Ends the game by blowing up each row from the top down
 	private void endGame () {
-		for (int i = 0; i < width; i++)
-			if (grid[0, i] != null)
-				grid[0, i].smash (false);
+		gameEnded = true;
+		drawPieces ();
 		InvokeRepeating ("endDestroyRow", 0f, .1f);
 	}
 	private void endDestroyRow () {
 		if (rowToDestroyNext >= grid.GetLength (0)) {
 			CancelInvoke ("endDestroyRow");
+			Application.LoadLevel ("MainMenu");
 		} else {
 			for (int i = 0; i < width; i++)
 				if (grid[rowToDestroyNext, i] != null)
-					grid[rowToDestroyNext, i].smash ();
+					Destroy(grid[rowToDestroyNext, i].gameObject);
 			rowToDestroyNext++;
 		}
 	}
 
+	int timesCalled = 0;
 	// draws the top n rows
 	private void drawPieces (int n = -1) {
+		//Debug.Log ("drawPieces call #" + ++timesCalled);
 		if (n == -1)
 			n = height;
 		for (int r = 0; r < n; r++) {
 			for (int c = 0; c < width; c++) {
 				Block b = grid[r,c];
 				if (b != null) {
-					if (b.transform.position.x != c || b.transform.position.y != -r)
+					//if (b.transform.position.x != c || b.transform.position.y != -r)
 						b.transform.position = new Vector3 (c, -r);
 				}
 			}
 		}
+		//currentPlayerPiece.drawGhostBlock (ghostBlockPieces);
 	}
 
 	public PieceStorage[] nextPieces;
@@ -211,23 +248,38 @@ public class MainGame : MonoBehaviour {
 	}
 
 	// spawns the new currentPlayerPiece
-	private bool spawnPiece () {		
+	private bool spawnPiece (bool fromHeldPiece = false) {		
 		// shift all the next pieces up and spawn the next piece
-		currentPlayerPiece = nextPieces[0].piece;
-		for (int i = 0; i < nextPieces.Length - 1; i++) {
-			nextPieces[i].set (nextPieces[i + 1].piece);
+		if (!fromHeldPiece) {
+			currentPlayerPiece = nextPieces[0].piece;
+			for (int i = 0; i < nextPieces.Length - 1; i++) {
+				nextPieces[i].set (nextPieces[i + 1].piece);
+			}
+			nextPieces[nextPieces.Length - 1].set (Instantiate (piece).GetComponent<Piece> ());
+		} else { // we're spawning from the held piece
+			Piece newPiece = heldPiece.piece;
+			heldPiece.set (currentPlayerPiece);
+			currentPlayerPiece = newPiece;
+			if (currentPlayerPiece == null) {
+				return spawnPiece ();
+			}
 		}
-		nextPieces[nextPieces.Length - 1].set (Instantiate (piece).GetComponent<Piece> ());
-
 		GridCoord gridTopLeft = new GridCoord (0, width/2 - (currentPlayerPiece.width + 1)/2 + (currentPlayerPiece.width == 3 ? Random.Range(0, 2) : 0));
 		bool result = currentPlayerPiece.addToGrid (grid, gridTopLeft);
 		drawPieces ();
 		return result;
 	}
 	
+	private void spawnGhostPieces () {
+		ghostBlockPieces = new Transform[4];
+		for (int i = 0; i < ghostBlockPieces.Length; i++) {
+			ghostBlockPieces[i] = (Instantiate (ghostBlockPrefab) as GameObject).transform;
+		}
+	}
+	
 	// Writes out all the GUI words in 3d voxels
 	private void write3dText () {
 		Alphabet.singleton.write ("next", new Vector3 (13.75f, .25f, 0), Quaternion.identity.eulerAngles, Vector3.one * .5f);
-		//Alphabet.singleton.write ()
+		Alphabet.singleton.write ("hold", new Vector3 (-13.25f, .25f, 0), Quaternion.identity.eulerAngles, Vector3.one * .5f);
 	}
 }

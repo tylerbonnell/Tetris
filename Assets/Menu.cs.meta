@@ -1,11 +1,10 @@
 fileFormatVersion: 2
-guid: 5b02b7b256fc84ecca30572df9809265
-timeCreated: 1451758345
+guid: 42bc80a7fbc8742edbc8b974fd723faa
+timeCreated: 1451758369
 licenseType: Free
 MonoImporter:
   serializedVersion: 2
-  defaultReferences:
-  - voxel: {fileID: 142630, guid: 9d75e809d028f49f089778395545bb8d, type: 2}
+  defaultReferences: []
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 
